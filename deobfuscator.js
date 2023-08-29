@@ -46,7 +46,7 @@ const deobfuscate = async () => {
   script = await prettier.format(script, { parser: "babel" });
 
   // recover with extracted data
-  script = script.replace(/[a-zA-Z]+\((\d+)\)/g, (m, c) => {
+  script = script.replace(/[a-zA-Z_][a-zA-Z_0-9]*\((\d+)\)/g, (m, c) => {
     c -= idx;
     if (c < 0 || c >= data.length) {
       return `${m} /* error */`;
