@@ -7,21 +7,32 @@ const IN = "./script.js";
 const OUT = "./output.js";
 
 const deobfuscate = async () => {
-  const ep = "=this||self,"; // entry point
+  /**
+   * =this||self,
+   * = this || self,
+   * = this || self),
+   */
+  const ep = / *= *this *\|\| *self\)*,/;
 
-  let window = { _cf_chl_opt: {} };
-  let self = {};
+  let window = { _cf_chl_opt: {} }; // fix ReferenceError: window is not defined
+  let self = {}; // fix ReferenceError: self is not defined
 
   let script = fs.readFileSync(IN, "utf-8");
 
   // get data variable name
-  let [_, name] = script.match(/~function\((\w+),/);
+  /**
+   * ~function(a,
+   *
+   * ~(function (
+   * a,
+   */
+  let [_, name] = script.match(/~\(*function\s*\(\s*(\w+),/);
 
   let idx = -1;
   let data = [];
 
-  if (script.indexOf(ep) === -1) {
-    return console.log("Deobfuscation entry point not found");
+  if (!script.match(ep)) {
+    return console.log("[-] Deobfuscation entry point not found");
   }
 
   // extract data
@@ -29,19 +40,23 @@ const deobfuscate = async () => {
     eval(
       script.replace(
         ep,
-        ep +
-          `(${() => {
+        (m) =>
+          `${m}(${() => {
             while (eval(name)(++idx) === undefined);
             data = [...a()];
           }})(),`
       )
     );
-  } catch {}
+  } catch (err) {
+    console.log("[!] An error occurred while extracting data");
+    console.log("[!] These are mostly ignorable errors");
+    console.log("[!]", err);
+  }
 
   if (idx <= 0 || data.length == 0) {
-    return console.log("data extract failed");
+    return console.log("[-] Data extract failed");
   }
-  console.log("data extracted!");
+  console.log("[+] Data extracted!");
 
   script = await prettier.format(script, { parser: "babel" });
 
@@ -60,6 +75,9 @@ const deobfuscate = async () => {
 
   script = await prettier.format(script, { parser: "babel" });
   fs.writeFileSync(OUT, script, "utf-8");
-  console.log("deobfuscated!");
+  console.log("[+] Deobfuscated!");
 };
-deobfuscate();
+deobfuscate().catch((err) => {
+  console.log("[-] An unknown error occurred");
+  console.log("[-]", err);
+});
